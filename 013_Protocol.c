@@ -13,6 +13,7 @@
 #include <string.h>
 #include "013_Protocol.h"
 #include "014_md5.h"
+#include "003_BG96.h"
 
 const char* cmd_list[] = {
 	CMD_DEV_REGISTER,
@@ -88,8 +89,11 @@ u8 g_hbeat_gap = 6;// default 6s
 u8 g_CHANGE_APN_name[LEN_FILE_NAME+1];
 
 extern u8 g_first_md5[LEN_COMMON_USE];
-extern u8 g_bg96_imei[LEN_COMMON_USE];
-extern u8 g_bg96_iccid[LEN_COMMON_USE];
+extern u8 g_imei_str[LEN_COMMON_USE];
+extern u8 g_iccid_str[LEN_COMMON_USE];
+
+char send_buf[LEN_MAX_SEND] = "";
+char send_md5[LEN_DW_MD5] = "e10adc3949ba59abbe56e057f20f883e";
 
 void calc_first_md5()
 {
@@ -97,8 +101,8 @@ void calc_first_md5()
     MD5_CTX g_ota_md5_ctx;
     
     GAgent_MD5Init(&g_ota_md5_ctx);
-    GAgent_MD5Update(&g_ota_md5_ctx, g_bg96_imei, strlen((char*)g_bg96_imei));
-    GAgent_MD5Update(&g_ota_md5_ctx, g_bg96_iccid, strlen((char*)g_bg96_iccid));
+    GAgent_MD5Update(&g_ota_md5_ctx, g_imei_str, strlen((char*)g_imei_str));
+    GAgent_MD5Update(&g_ota_md5_ctx, g_iccid_str, strlen((char*)g_iccid_str));
     GAgent_MD5Final(&g_ota_md5_ctx, g_first_md5);
     
     printf("MD5 = ");
@@ -349,3 +353,25 @@ void parse_mobit_msg(char* msg)
 		index++;
 	}
 }
+
+bool TcpHeartBeat(void)
+{
+    // const char send_data[] = "#MOBIT,868446032285351,HB,4.0,1,20,e10adc3949ba59abbe56e057f20f883e$";
+
+    memset(send_buf, 0, LEN_MAX_SEND);
+    sprintf(send_buf, "#MOBIT,%s,%s,%s,%s,%s,%s$", g_imei_str, CMD_HEART_BEAT, "4.0", "1", "20", send_md5);
+
+    return BG96TcpSend();
+}
+
+bool TcpDeviceRegister(void)
+{
+    // const char send_data[] = "#MOBIT,868446032285351,REG,898602B4151830031698,1.0.0,1.0.0,4.0,1561093302758,2,e10adc3949ba59abbe56e057f20f883e$";
+
+    memset(send_buf, 0, LEN_MAX_SEND);
+    sprintf(send_buf, "#MOBIT,%s,%s,%s,%s,%s,%s,%s,%s,%s$", g_imei_str, CMD_DEV_REGISTER, g_iccid_str, "1.0.0", "1.00", "4.0", "20190709180030", "2", send_md5);
+
+    return BG96TcpSend();
+}
+
+

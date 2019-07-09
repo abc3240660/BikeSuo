@@ -53,7 +53,7 @@
 #define LEN_IMEI_NO     32
 #define LEN_BAT_VOL     32
 #define LEN_RSSI_VAL    32
-#define LEN_MAX_SEND    1024
+#define LEN_MAX_SEND    256
 #define LEN_MAX_RECV    32
 #define LEN_DW_MD5      32
 #define LEN_DW_URL      128
@@ -95,5 +95,8 @@ enum CMD_TYPE {
 
 void calc_first_md5();
 void parse_mobit_msg(char* msg);
+
+bool TcpHeartBeat(void);
+bool TcpDeviceRegister(void);
 
 #endif

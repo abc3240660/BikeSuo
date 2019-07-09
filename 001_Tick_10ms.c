@@ -34,7 +34,7 @@ extern bool WaitUartTmpRxIdle();
 
 char tmpuse_buf[RX_RINGBUF_MAX_LEN] = {0};
 
-extern int is_tcp_closed;
+extern int g_net_sta;
 
 //******************************************************************************
 //* Timer 1
@@ -216,7 +216,7 @@ void __attribute__((__interrupt__, no_auto_psv)) _T2Interrupt(void)
                         
                         if ((p=strstr(tmpuse_buf, "+QIURC: ")) != NULL) {
                             if ((p=strstr(tmpuse_buf, "closed")) != NULL) {// TCP mode only
-                                is_tcp_closed = 1;
+                                g_net_sta = 0x80;
                                 printf("******* TCP Closed *******\n");
                             } else if ((p=strstr(tmpuse_buf, "recv")) != NULL) {// TCP or UDP
                                 cnt_tail = 0;

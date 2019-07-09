@@ -45,10 +45,10 @@ extern VAR Mobit;
 extern NonVolatile NonVolatileDATA;
 extern unsigned long MobitTimes;
 
-extern u8 g_bg96_imei[LEN_COMMON_USE];
-extern u8 g_bg96_iccid[LEN_COMMON_USE];
+extern u8 g_imei_str[LEN_COMMON_USE];
+extern u8 g_iccid_str[LEN_COMMON_USE];
 
-extern int is_tcp_closed;
+extern u8 g_net_sta;
 
 //******************************************************************************
 // Configure BG96
@@ -56,21 +56,28 @@ extern int is_tcp_closed;
 void Configure_BG96(void)
 {
 //    bool resultBool = false;
-    ringbuffer_init(&tmp_rbuf,tmpRingbuf,RX_RINGBUF_MAX_LEN);
-    ringbuffer_init(&at_rbuf,atRingbuf,RX_RINGBUF_MAX_LEN);
-    ringbuffer_init(&net_rbuf,netRingbuf,RX_RINGBUF_MAX_LEN);
+
+    while (1) {
 //    resultBool = InitModule();
 //    if(resultBool){
 //        printf("init bg96 success!\r\n");
 //    }else{
 //        printf("init bg96 failure!\r\n");
 //    }
-    
-    BG96ATInit();
-    
-    TcpClose();
-    
-    ConnectTcp();
+
+        if (BG96ATInitialize()) {
+            break;
+        }
+
+        delay_ms(1000);
+    }
+}
+
+void InitRingBuffers(void)
+{
+    ringbuffer_init(&tmp_rbuf,tmpRingbuf,RX_RINGBUF_MAX_LEN);
+    ringbuffer_init(&at_rbuf,atRingbuf,RX_RINGBUF_MAX_LEN);
+    ringbuffer_init(&net_rbuf,netRingbuf,RX_RINGBUF_MAX_LEN);
 }
 
 /////////////////////////////////// Wait Implement ///////////////////////////////////
@@ -2245,7 +2252,7 @@ int SwithToNB(void)
 {
 }
 
-bool TcpClose(void)
+bool CloseTcpService(void)
 {
     const char *cmd = "+QICLOSE=0";
 
@@ -2261,123 +2268,105 @@ bool QueryNetStatus(void)
 
     if (SendAndSearch(cmd, "+CGATT: 1", 2)) {
         char *end_buf = SearchStrBuffer(RESPONSE_CRLF_OK);
+
         return true;
     }
+
     return false;
 }
 
-int BG96ATInit(void)
+bool BG96ATInitialize(void)
 {
     u8 trycnt = 10;
 
-    // Setup
     printf("This is the Mobit Debug Serial!\n");
-    DelayMs(1000);
-    //while(!InitModule());
 
-    SetDevCommandEcho(false);
+    while(trycnt--) {
+        if (SetDevCommandEcho(false)) {
+            break;
+        }
+    }
 
-//    char inf[64];
-//    if(GetDevInformation(inf)){
-//        printf("Dev Info: %s!\n", inf);
-//    }
-    
-    GetDevIMEI((char *)g_bg96_imei);
-    GetDevSimICCID((char *)g_bg96_iccid);
+    if (trycnt < 1) {
+        return false;
+    }
+
+    SwithToGSM();
 
     while(trycnt--) {
         if (true == QueryNetStatus()) {
             break;
         }
     }
-//    while(1);
-    SwithToGSM();
-    
-    return 0;
+
+    if (trycnt < 1) {
+        return false;
+    }
+
+    GetDevIMEI((char *)g_imei_str);
+    GetDevSimICCID((char *)g_iccid_str);
+
+    return true;
 }
 
-//int ConnectTcp(void)
-//{
-//}
-
-int HeartBeat(void)
+bool BG96TcpSend(void)
 {
-    const char send_data[] = "#MOBIT,868446032285351,HB,4.0,1,20,e10adc3949ba59abbe56e057f20f883e$";
     unsigned int comm_socket_index = 0;  // The range is 0 ~ 11
     Socket_Type_t socket = TCP_CLIENT;
-    
+
     if(SocketSendData(comm_socket_index, socket, (char *)send_data, "", 88)){
         printf("Socket Send Data Success!\n");
+
+        return true;
+    } else {
+        return false;
     }
-    
-    return 0;
 }
 
-int ConnectTcp(void)
+bool ConnectToTcpServer(void)
 {
-    const char APN[] = "CMNET";
-    const char tcp_ip[] = "122.4.233.119";
-    const int tcp_port =  10211;
-    const char send_data[] = "#MOBIT,868446032285351,REG,898602B4151830031698,1.0.0,1.0.0,4.0,1561093302758,2,e10adc3949ba59abbe56e057f20f883e$";
+    u8 trycnt = 10;
+
     unsigned int comm_pdp_index = 1;  // The range is 1 ~ 16
     unsigned int comm_socket_index = 0;  // The range is 0 ~ 11
     Socket_Type_t socket = TCP_CLIENT;
 
     char apn_error[64];
-    while (!InitAPN(comm_pdp_index, (char *)APN, "", "", apn_error)){
+
+    while(trycnt--) {
+        if (InitAPN(comm_pdp_index, (char *)g_svr_apn, "", "", apn_error)) {
+            break;
+        }
+
         printf("apn_error :%s\n", apn_error);
     }
 
-    while (!OpenSocketService(comm_pdp_index, comm_socket_index, socket, (char *)tcp_ip, tcp_port, 0, DIRECT_PUSH_MODE)){
-        printf("Open Socket Service Fail!\n");
-        
-        TcpClose();
+    if (trycnt < 1) {
+        return false;
     }
-    
-    is_tcp_closed = 0;
+
+    CloseTcpService();
+
+    trycnt = 10;
+    while(trycnt--) {
+        if (OpenSocketService(comm_pdp_index, comm_socket_index, socket, (char *)g_svr_ip, (char *)g_svr_port, 0, DIRECT_PUSH_MODE)){
+            break;
+        }
+
+        printf("Open Socket Service Fail!\n");
+        CloseTcpService();
+    }
+
+    if (trycnt < 1) {
+        return false;
+    }
+
+    g_net_sta = 0x81;
     printf("Open Socket Service Success!\n");
 
-    if(SocketSendData(comm_socket_index, socket, (char *)send_data, "", 88)){
-        printf("Socket Send Data Success!\n");
-    }
+    TcpDeviceRegister();
 
-#if 0
-    char m_event[16];
-    unsigned int index;
-    char recv_data[128];
-
-    while(1) {
-        DelayMs(1000);
-        Socket_Event_t ret = WaitCheckSocketEvent(m_event, 10);
-
-        switch(ret)
-        {
-            case SOCKET_CLOSE_EVENT:
-                index = atoi(m_event);
-                if(CloseSocketService(index)){
-                    printf("Close Socket Success!\n");
-                }
-                break;
-            case SOCKET_RECV_DATA_EVENT:
-                index = atoi(m_event);
-                if (SocketRecvData(index, 128, socket, recv_data)){
-                    printf("Socket Recv Data Success!\n");
-                    printf("recv_data: %s\n", recv_data);
-                }
-                break;
-            case SOCKET_PDP_DEACTIVATION_EVENT:
-                index = atoi(m_event);
-                if(DeactivateDevAPN(index)){
-                    printf("Please reconfigure APN!\n");
-                }
-                break;
-            default:
-                break;
-        }
-    }
-#endif
-
-    return 0;
+    return true;
 }
 
 int ProcessEvent(void)

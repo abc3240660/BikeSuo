@@ -38,12 +38,19 @@ NonVolatile NonVolatileDATA;
 char one_svr_cmds[RX_RINGBUF_MAX_LEN] = {0};
 
 int is_mode_nb = 0;
-int is_tcp_closed = 0;
 
-u8 g_bg96_imei[LEN_COMMON_USE] = "1234567890";
-u8 g_bg96_iccid[LEN_COMMON_USE] = "ABCDEFGHIJK";
+// BIT7: have ever connected at least once
+// BIT0: current connect status
+u8 g_net_sta = 0;
+
+u8 g_imei_str[LEN_COMMON_USE] = "868446032285351";
+u8 g_iccid_str[LEN_COMMON_USE] = "898602B4151830031698";
 
 u8 g_first_md5[LEN_COMMON_USE] = "";
+
+u8 g_svr_ip[32]  = "122.4.233.119";
+u8 g_svr_port[8] = "10211";
+u8 g_svr_apn[32] = "CMNET";
 
 void process_bg96(void)
 {
@@ -142,6 +149,8 @@ int main(void)
     
     // calc_first_md5();
 
+    InitRingBuffers();
+
     Configure_BG96();
 
     while(1)
@@ -152,9 +161,8 @@ int main(void)
         
         task_cnt++;
         
-        if (is_tcp_closed) {
-            TcpClose();
-            ConnectTcp();
+        if ((0x80==g_net_sta) || (0==g_net_sta)) {// lost connection
+            ConnectToTcpServer();
         }
 
         if (10 == task_cnt) {// 500MS -> process task1
@@ -164,7 +172,7 @@ int main(void)
         } else if (40 == task_cnt) {// 2000MS -> process task4
         } else if (50 == task_cnt) {// 2500MS -> process task4
             // ProcessEvent();
-            HeartBeat();
+            TcpHeartBeat();
             task_cnt = 0;
         }
         

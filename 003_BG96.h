@@ -492,11 +492,12 @@ int IsNetRingBufferAvailable();
 char ReadByteFromNetRingBuffer();
 
 int BG96ATInit(void);
-int ConnectTcp(void);
-bool TcpClose(void);
+int ConnectToTcpServer(void);
+bool CloseTcpConnectRes(void);
 int HeartBeat(void);
 
 int ProcessEvent(void);
+void InitRingBuffers(void);
 
 #endif //__BG96_H
 
