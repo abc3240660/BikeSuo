@@ -50,6 +50,12 @@ extern u8 g_iccid_str[LEN_COMMON_USE];
 
 extern u8 g_net_sta;
 
+extern u8 g_svr_ip[32];
+extern u8 g_svr_port[8];
+extern u8 g_svr_apn[32];
+
+extern char bg96_send_buf[LEN_MAX_SEND];
+
 //******************************************************************************
 // Configure BG96
 //******************************************************************************
@@ -2244,12 +2250,14 @@ SSL_Socket_Event_t WaitCheckSSLSocketEvent(char *event, unsigned int timeout)
     return 0;
 }
 
-int SwithToGSM(void)
+bool SwithToGSM(void)
 {
+    return true;
 }
 
-int SwithToNB(void)
+bool SwithToNB(void)
 {
+    return true;
 }
 
 bool CloseTcpService(void)
@@ -2267,7 +2275,7 @@ bool QueryNetStatus(void)
     const char *cmd = "+CGATT?";
 
     if (SendAndSearch(cmd, "+CGATT: 1", 2)) {
-        char *end_buf = SearchStrBuffer(RESPONSE_CRLF_OK);
+//        char *end_buf = SearchStrBuffer(RESPONSE_CRLF_OK);
 
         return true;
     }
@@ -2314,7 +2322,7 @@ bool BG96TcpSend(void)
     unsigned int comm_socket_index = 0;  // The range is 0 ~ 11
     Socket_Type_t socket = TCP_CLIENT;
 
-    if(SocketSendData(comm_socket_index, socket, (char *)send_data, "", 88)){
+    if(SocketSendData(comm_socket_index, socket, (char *)bg96_send_buf, "", 88)){
         printf("Socket Send Data Success!\n");
 
         return true;
@@ -2349,7 +2357,7 @@ bool ConnectToTcpServer(void)
 
     trycnt = 10;
     while(trycnt--) {
-        if (OpenSocketService(comm_pdp_index, comm_socket_index, socket, (char *)g_svr_ip, (char *)g_svr_port, 0, DIRECT_PUSH_MODE)){
+        if (OpenSocketService(comm_pdp_index, comm_socket_index, socket, (char *)g_svr_ip, /*atoi(g_svr_port)*/88, 0, DIRECT_PUSH_MODE)){
             break;
         }
 
@@ -2367,103 +2375,6 @@ bool ConnectToTcpServer(void)
     TcpDeviceRegister();
 
     return true;
-}
-
-int ProcessEvent(void)
-{
-    char m_event[16];
-    unsigned int index;
-    char recv_data[128];
-    Socket_Event_t ret = WaitCheckSocketEvent(m_event, 10);
-    
-    switch(ret)
-    {
-        case SOCKET_CLOSE_EVENT:
-            index = atoi(m_event);
-            if(CloseSocketService(index)){
-                printf("Close Socket Success!\n");
-            }
-            break;
-        case SOCKET_PDP_DEACTIVATION_EVENT:
-            index = atoi(m_event);
-            if(DeactivateDevAPN(index)){
-                printf("Please reconfigure APN!\n");
-            }
-            break;
-        default:
-            break;
-    }
-}
-int TcpClientDemo10s(void)
-{
-    const char APN[] = "CMNET";
-    const char tcp_ip[] = "122.4.233.119";
-    const int tcp_port =  10211;
-    const char send_data[] = "#MOBIT,868446032285351,REG,898602B4151830031698,1.0.0,1.0.0,4.0,1561093302758,2,e10adc3949ba59abbe56e057f20f883e$";
-    unsigned int comm_pdp_index = 2;  // The range is 1 ~ 16
-    unsigned int comm_socket_index = 2;  // The range is 0 ~ 11
-    Socket_Type_t socket = TCP_CLIENT;
-
-    // Setup
-    printf("This is the Mobit Debug Serial!\n");
-    DelayMs(1000);
-    while(!InitModule());
-
-    SetDevCommandEcho(false);
-
-    char inf[64];
-    if(GetDevInformation(inf)){
-        printf("Dev Info: %s!\n", inf);
-    }
-        
-    char apn_error[64];
-    while (!InitAPN(comm_pdp_index, (char *)APN, "", "", apn_error)){
-        printf("apn_error :%s\n", apn_error);
-    }
-    printf("apn_error :%s\n", apn_error);
-    DelayMs(500);
-    while (!OpenSocketService(comm_pdp_index, comm_socket_index, socket, (char *)tcp_ip, tcp_port, 0, BUFFER_MODE)){
-        printf("Open Socket Service Fail!\n");
-    }
-    printf("Open Socket Service Success!\n");
-
-    char m_event[16];
-    unsigned int index;
-    char recv_data[128];
-    
-    while(1){
-        if(SocketSendData(comm_socket_index, socket, (char *)send_data, "", 88)){
-            printf("Socket Send Data Success!\n");
-        }
-        Socket_Event_t ret = WaitCheckSocketEvent(m_event, 10);
-        switch(ret)
-        {
-            case SOCKET_CLOSE_EVENT:
-                index = atoi(m_event);
-                if(CloseSocketService(index)){
-                    printf("Close Socket Success!\n");
-                }
-                break;
-            case SOCKET_RECV_DATA_EVENT:
-                index = atoi(m_event);
-                if (SocketRecvData(index, 128, socket, recv_data)){
-                    printf("Socket Recv Data Success!\n");
-                    printf("recv_data: %s\n", recv_data);
-                }
-                break;
-            case SOCKET_PDP_DEACTIVATION_EVENT:
-                index = atoi(m_event);
-                if(DeactivateDevAPN(index)){
-                    printf("Please reconfigure APN!\n");
-                }
-                break;
-            default:
-                break;
-        }
-        DelayMs(10*1000);
-    }
-
-    return 0;
 }
 
 int HttpClientDemo(void)

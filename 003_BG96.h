@@ -491,13 +491,14 @@ bool WaitUartNetRxIdle();
 int IsNetRingBufferAvailable();
 char ReadByteFromNetRingBuffer();
 
-int BG96ATInit(void);
-int ConnectToTcpServer(void);
-bool CloseTcpConnectRes(void);
-int HeartBeat(void);
+bool BG96ATInit(void);
+bool HeartBeat(void);
 
-int ProcessEvent(void);
 void InitRingBuffers(void);
+
+bool BG96ATInitialize(void);
+bool ConnectToTcpServer(void);
+bool BG96TcpSend(void);
 
 #endif //__BG96_H
 

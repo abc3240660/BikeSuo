@@ -92,7 +92,7 @@ extern u8 g_first_md5[LEN_COMMON_USE];
 extern u8 g_imei_str[LEN_COMMON_USE];
 extern u8 g_iccid_str[LEN_COMMON_USE];
 
-char send_buf[LEN_MAX_SEND] = "";
+char bg96_send_buf[LEN_MAX_SEND] = "";
 char send_md5[LEN_DW_MD5] = "e10adc3949ba59abbe56e057f20f883e";
 
 void calc_first_md5()
@@ -358,8 +358,8 @@ bool TcpHeartBeat(void)
 {
     // const char send_data[] = "#MOBIT,868446032285351,HB,4.0,1,20,e10adc3949ba59abbe56e057f20f883e$";
 
-    memset(send_buf, 0, LEN_MAX_SEND);
-    sprintf(send_buf, "#MOBIT,%s,%s,%s,%s,%s,%s$", g_imei_str, CMD_HEART_BEAT, "4.0", "1", "20", send_md5);
+    memset(bg96_send_buf, 0, LEN_MAX_SEND);
+    sprintf(bg96_send_buf, "#MOBIT,%s,%s,%s,%s,%s,%s$", g_imei_str, CMD_HEART_BEAT, "4.0", "1", "20", send_md5);
 
     return BG96TcpSend();
 }
@@ -368,8 +368,8 @@ bool TcpDeviceRegister(void)
 {
     // const char send_data[] = "#MOBIT,868446032285351,REG,898602B4151830031698,1.0.0,1.0.0,4.0,1561093302758,2,e10adc3949ba59abbe56e057f20f883e$";
 
-    memset(send_buf, 0, LEN_MAX_SEND);
-    sprintf(send_buf, "#MOBIT,%s,%s,%s,%s,%s,%s,%s,%s,%s$", g_imei_str, CMD_DEV_REGISTER, g_iccid_str, "1.0.0", "1.00", "4.0", "20190709180030", "2", send_md5);
+    memset(bg96_send_buf, 0, LEN_MAX_SEND);
+    sprintf(bg96_send_buf, "#MOBIT,%s,%s,%s,%s,%s,%s,%s,%s,%s$", g_imei_str, CMD_DEV_REGISTER, g_iccid_str, "1.0.0", "1.00", "4.0", "20190709180030", "2", send_md5);
 
     return BG96TcpSend();
 }
